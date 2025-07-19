@@ -8,11 +8,30 @@
 import SwiftUI
 
 struct PostRow: View {
+	let post: Post
+	
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+		VStack(alignment: .leading, spacing: 10) {
+			HStack {
+				Text(post.authorName)
+					.font(.subheadline)
+					.fontWeight(.medium)
+				Spacer()
+				Text(post.timestamp.formatted(date: .abbreviated, time: .omitted))
+					.font(.caption)
+			}
+			.foregroundColor(.gray)
+			Text(post.title)
+				.font(.title3)
+				.fontWeight(.semibold)
+			Text(post.content)
+		}
+		.padding(.vertical)
     }
 }
 
 #Preview {
-    PostRow()
+	List {
+		PostRow(post: Post.testPost)
+	}
 }

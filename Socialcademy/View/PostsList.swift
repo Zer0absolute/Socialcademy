@@ -9,13 +9,16 @@ import SwiftUI
 
 struct PostsList: View {
 	private var posts = [Post.testPost]
+	@State private var searchText: String = ""
 	
     var body: some View {
 		NavigationStack {
 			List(posts) { post in
-				Text(post.title)
-				Text(post.content)
+				if searchText.isEmpty || post.contains(searchText) {
+					PostRow(post: post)
+				}
 			}
+			.searchable(text: $searchText, prompt: "Search post")
 			.navigationTitle("Posts")
 		}
     }
