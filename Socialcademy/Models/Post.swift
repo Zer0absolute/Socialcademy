@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Post: Identifiable {
+struct Post: Identifiable, Codable {
 	var title: String
 	var content: String
 	var authorName: String
@@ -15,12 +15,14 @@ struct Post: Identifiable {
 	var id = UUID()
 	
 	func contains(_ string: String) -> Bool {
-		let properties = [title, content, authorName].map { $0.lowercased()}
+		let properties = [title, content, authorName]
 		let query = string.lowercased()
 		
-		let matches = properties.filter { $0.contains(query)}
-		return !matches.isEmpty
+		return properties.contains { property in
+			property.localizedCaseInsensitiveContains(query)
+		}
 	}
+	
 }
 
 extension Post {
