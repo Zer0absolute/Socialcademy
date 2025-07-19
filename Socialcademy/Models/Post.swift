@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct Post: Identifiable {
+struct Post: Identifiable, Codable {
 	var title: String
 	var content: String
 	var authorName: String
@@ -22,6 +22,7 @@ struct Post: Identifiable {
 			property.localizedCaseInsensitiveContains(query)
 		}
 	}
+	
 }
 
 extension Post {

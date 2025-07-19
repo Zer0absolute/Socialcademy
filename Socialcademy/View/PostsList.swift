@@ -8,14 +8,15 @@
 import SwiftUI
 
 struct PostsList: View {
-	private var posts = [Post.testPost]
+	@State private var viewModel = PostsViewModel()
 	@State private var searchText: String = ""
+	@State private var showNewPostForm = false
 	
 	var filteredPosts: [Post] {
 		if searchText.isEmpty {
-			return posts
+			return viewModel.posts
 		} else {
-			return posts.filter { $0.contains(searchText) }
+			return viewModel.posts.filter { $0.contains(searchText) }
 		}
 	}
 	
@@ -31,6 +32,16 @@ struct PostsList: View {
 			}
 			.searchable(text: $searchText, prompt: "Search post")
 			.navigationTitle("Posts")
+			.toolbar {
+				Button {
+					showNewPostForm = true
+				} label: {
+					Label("New Post", systemImage: "square.and.pencil")
+				}
+			}
+		}
+		.sheet(isPresented: $showNewPostForm) {
+			NewPostForm(createAction: viewModel.makeCreateAction())
 		}
     }
 }
