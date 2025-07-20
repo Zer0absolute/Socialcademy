@@ -8,29 +8,43 @@
 import SwiftUI
 
 struct PostsList: View {
-	@State private var viewModel = PostsViewModel()
+	@State var viewModel = PostsViewModel()
 	@State private var searchText: String = ""
 	@State private var showNewPostForm = false
-	
-	var filteredPosts: [Post] {
-		if searchText.isEmpty {
-			return viewModel.posts
-		} else {
-			return viewModel.posts.filter { $0.contains(searchText) }
-		}
-	}
-	
-    var body: some View {
+
+	var body: some View {
 		NavigationStack {
-			List(filteredPosts) { post in
-				PostRow(post: post)
-			}
-			.overlay {
-				if filteredPosts.isEmpty && !searchText.isEmpty {
-					ContentUnavailableView.search
+			Group {
+				switch viewModel.posts {
+				case .loading:
+					ProgressView()
+				case let .error(error):
+					EmptyListView(
+						title: "Cannot Load Posts",
+						message: error.localizedDescription,
+						retryAction: {
+							viewModel.fetchPosts()
+						}
+					)
+				case .empty:
+					EmptyListView(
+						title: "No Posts",
+						message: "There aren't any posts yet."
+					)
+				case .loaded(let posts):
+					let filtered = posts.filter {
+						searchText.isEmpty || $0.contains(searchText)
+					}
+
+					if filtered.isEmpty {
+						ContentUnavailableView.search
+					} else {
+						List(filtered) { post in
+							PostRow(post: post)
+						}
+					}
 				}
 			}
-			.searchable(text: $searchText, prompt: "Search post")
 			.navigationTitle("Posts")
 			.toolbar {
 				Button {
@@ -39,13 +53,42 @@ struct PostsList: View {
 					Label("New Post", systemImage: "square.and.pencil")
 				}
 			}
+			.sheet(isPresented: $showNewPostForm) {
+				NewPostForm(createAction: viewModel.makeCreateAction())
+			}
+			.searchable(text: $searchText, prompt: "Search post")
 		}
-		.sheet(isPresented: $showNewPostForm) {
-			NewPostForm(createAction: viewModel.makeCreateAction())
+		.onAppear {
+			viewModel.fetchPosts()
 		}
-    }
+	}
+}
+
+// MARK: - Previews
+
+@MainActor
+private func makePostsList(state: Loadable<[Post]>) -> some View {
+	let postsRepository = PostsRepositoryStub(state: state)
+	let viewModel = PostsViewModel(postsRepository: postsRepository)
+	return PostsList(viewModel: viewModel)
 }
 
 #Preview {
-    PostsList()
+	PostsList()
+}
+
+#Preview("Posts - Loaded") {
+	makePostsList(state: .loaded([Post.testPost]))
+}
+
+#Preview("Posts - Empty") {
+	makePostsList(state: .empty)
+}
+
+#Preview("Posts - Error") {
+	makePostsList(state: .previewError)
+}
+
+#Preview("Posts - Loading") {
+	makePostsList(state: .loading)
 }
