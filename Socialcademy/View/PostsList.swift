@@ -1,5 +1,5 @@
 //
-//  PostList.swift
+//  PostsList.swift
 //  Socialcademy
 //
 //  Created by Maël Colomé on 19/07/2025.
@@ -32,16 +32,20 @@ struct PostsList: View {
 						message: "There aren't any posts yet."
 					)
 				case .loaded(let posts):
-					let filtered = posts.filter {
+					let filteredPosts = posts.filter {
 						searchText.isEmpty || $0.contains(searchText)
 					}
 
-					if filtered.isEmpty {
+					if filteredPosts.isEmpty {
 						ContentUnavailableView.search
 					} else {
-						List(filtered) { post in
-							PostRow(post: post)
+						List {
+							ForEach(filteredPosts, id: \.id) { post in
+								let postRowViewModel = viewModel.makePostRowViewModel(for: post)
+								PostRow(viewModel: postRowViewModel)
+							}
 						}
+						.animation(.default, value: filteredPosts)
 					}
 				}
 			}

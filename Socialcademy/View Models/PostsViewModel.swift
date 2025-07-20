@@ -12,6 +12,7 @@ import Foundation
 class PostsViewModel {
 	var posts: Loadable<[Post]> = .loading
 	private let postsRepository: PostsRepositoryProtocol
+	private var postRowViewModels: [UUID: PostRowViewModel] = [:]
 	
 	init(postsRepository: PostsRepositoryProtocol = PostsRepository()) {
 		self.postsRepository = postsRepository
@@ -20,9 +21,16 @@ class PostsViewModel {
 	func fetchPosts() {
 		Task {
 			do {
-				posts = .loaded(try await postsRepository.fetchPosts())
+				let fetchedPosts = try await postsRepository.fetchPosts()
+				posts = .loaded(fetchedPosts)
+				
+				// Mettre à jour tous les ViewModels existants avec les nouvelles données
+				for post in fetchedPosts {
+					if let existingViewModel = postRowViewModels[post.id] {
+						existingViewModel.updatePost(post)
+					}
+				}
 			} catch {
-				print("[PostsViewModel] Cannot fetch posts: \(error)")
 				posts = .error(error)
 			}
 		}
@@ -34,11 +42,67 @@ class PostsViewModel {
 
 			guard let self = self else { return }
 
-			// Vérifie si posts est déjà en état .loaded
 			if case var .loaded(currentPosts) = self.posts {
 				currentPosts.insert(post, at: 0)
 				self.posts = .loaded(currentPosts)
 			}
 		}
+	}
+	
+	
+	func makePostRowViewModel(for post: Post) -> PostRowViewModel {
+		// Vérifier si on a déjà un ViewModel pour ce post
+		if let existingViewModel = postRowViewModels[post.id] {
+			existingViewModel.updatePost(post)
+			return existingViewModel
+		}
+		
+		let viewModel = PostRowViewModel(
+			post: post,
+			deleteAction: { [weak self] in
+				guard let self = self else { return }
+				
+				// Trouver le post actuel dans la liste
+				guard case var .loaded(currentPosts) = self.posts,
+					  let index = currentPosts.firstIndex(where: { $0.id == post.id }) else {
+					return
+				}
+				
+				let postToDelete = currentPosts[index]
+				try await self.postsRepository.delete(postToDelete)
+				
+				// Supprimer de la liste
+				currentPosts.remove(at: index)
+				self.posts = .loaded(currentPosts)
+				
+				// Supprimer le ViewModel de la cache
+				self.postRowViewModels.removeValue(forKey: post.id)
+			},
+			favoriteAction: { [weak self] in
+				guard let self = self else { return }
+
+				// Trouver le post actuel dans la liste
+				guard case var .loaded(currentPosts) = self.posts,
+					  let index = currentPosts.firstIndex(where: { $0.id == post.id }) else {
+					return
+				}
+				
+				let currentPost = currentPosts[index]
+				let newValue = !currentPost.isFavorite
+
+				if newValue {
+					try await self.postsRepository.favorite(currentPost)
+				} else {
+					try await self.postsRepository.unfavorite(currentPost)
+				}
+
+				// Recharger les posts depuis Firebase pour s'assurer de la synchronisation
+				self.fetchPosts()
+			}
+		)
+		
+		// Stocker le ViewModel dans la cache
+		postRowViewModels[post.id] = viewModel
+		return viewModel
 	}
 }
